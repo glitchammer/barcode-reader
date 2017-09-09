@@ -34,6 +34,9 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.GestureDetector;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -79,6 +82,8 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
     private ScaleGestureDetector scaleGestureDetector;
     private GestureDetector gestureDetector;
 
+    private boolean mUseFlash = false;
+
     /**
      * Initializes the UI and creates the detector pipeline.
      */
@@ -91,14 +96,14 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
         mGraphicOverlay = (GraphicOverlay<BarcodeGraphic>) findViewById(R.id.graphicOverlay);
 
         // read parameters from the intent used to launch the activity.
-        boolean autoFocus = getIntent().getBooleanExtra(AutoFocus, false);
-        boolean useFlash = getIntent().getBooleanExtra(UseFlash, false);
+        boolean autoFocus = getIntent().getBooleanExtra(AutoFocus, true);
+        mUseFlash = getIntent().getBooleanExtra(UseFlash, false);
 
         // Check for the camera permission before accessing the camera.  If the
         // permission is not granted yet, request permission.
         int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
         if (rc == PackageManager.PERMISSION_GRANTED) {
-            createCameraSource(autoFocus, useFlash);
+            createCameraSource(autoFocus, mUseFlash);
         } else {
             requestCameraPermission();
         }
@@ -106,9 +111,42 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
         gestureDetector = new GestureDetector(this, new CaptureGestureListener());
         scaleGestureDetector = new ScaleGestureDetector(this, new ScaleListener());
 
-        Snackbar.make(mGraphicOverlay, "Tap to capture. Pinch/Stretch to zoom",
-                Snackbar.LENGTH_LONG)
-                .show();
+//        Snackbar.make(mGraphicOverlay, "Tap to capture. Pinch/Stretch to zoom",
+//                Snackbar.LENGTH_LONG)
+//                .show();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_barcode_capture, menu);
+        menu.findItem(R.id.use_flash).setIcon(getResources().getDrawable(mUseFlash? R.drawable.ic_flash_off_white_24dp : R.drawable.ic_flash_on_white_24dp));
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.use_flash:
+
+                mUseFlash = !mUseFlash;
+
+                if (mUseFlash) {
+                    // switch on
+                    mCameraSource.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                    item.setIcon(getResources().getDrawable(R.drawable.ic_flash_off_white_24dp));
+                }
+                else {
+                    // switch off
+                    mCameraSource.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+                    item.setIcon(getResources().getDrawable(R.drawable.ic_flash_on_white_24dp));
+                }
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     /**
