@@ -27,6 +27,8 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.hardware.Camera;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -90,6 +92,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     private GestureDetector gestureDetector;
 
     private boolean mUseFlash = false;
+    private boolean mLockAvoidFurtherScansImmediately = false;
 
     /**
      * Initializes the UI and creates the detector pipeline.
@@ -270,6 +273,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     @Override
     protected void onResume() {
         super.onResume();
+        mLockAvoidFurtherScansImmediately = false;
         startCameraSource();
     }
 
@@ -417,7 +421,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     }
 
     @Override
-    public void onScannedBarcode(Barcode barcode, Frame.Metadata frameMetadata) {
+    public void onScannedBarcode(final Barcode barcode, Frame.Metadata frameMetadata) {
         if (barcode==null) return;
 
         //Log.i(TAG, "onScannedBarcode: "+barcode.getBoundingBox());
@@ -430,12 +434,25 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
         Log.i(TAG, "frame: "+ frameMetadata.getWidth() + " x "+frameMetadata.getHeight());
         Log.i(TAG, "topLayout: "+ mTopLayout.getWidth() + " x "+mTopLayout.getHeight());
 
-        if (isViewContains(mCursor, tmpX, tmpY)) {
+        if (!mLockAvoidFurtherScansImmediately && isViewContains(mCursor, tmpX, tmpY)) {
+
+            mLockAvoidFurtherScansImmediately = true;
 
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(BarcodeCaptureActivity.this, "!!!", Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(BarcodeCaptureActivity.this, "!!!", Toast.LENGTH_SHORT).show();
+
+                    mPreview.stop();
+
+                    ToneGenerator toneGen = new ToneGenerator(AudioManager.STREAM_RING, 100);
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP,150);
+                    toneGen.release();
+
+                    Intent iScanResult = new Intent(BarcodeCaptureActivity.this, ScanResultActivity.class);
+                    iScanResult.putExtra(ScanResultActivity.PARAM_CODE, barcode.rawValue);
+                    startActivity(iScanResult);
+
                 }
             });
 
