@@ -25,6 +25,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
@@ -40,6 +41,8 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -49,6 +52,7 @@ import com.google.android.gms.samples.vision.barcodereader.ui.camera.CameraSourc
 import com.google.android.gms.samples.vision.barcodereader.ui.camera.CameraSourcePreview;
 
 import com.google.android.gms.samples.vision.barcodereader.ui.camera.GraphicOverlay;
+import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.MultiProcessor;
 import com.google.android.gms.vision.barcode.Barcode;
 import com.google.android.gms.vision.barcode.BarcodeDetector;
@@ -60,7 +64,7 @@ import java.io.IOException;
  * rear facing camera. During detection overlay graphics are drawn to indicate the position,
  * size, and ID of each barcode.
  */
-public final class BarcodeCaptureActivity extends AppCompatActivity {
+public final class BarcodeCaptureActivity extends AppCompatActivity implements BarcodeTrackerFactory.ScanListener {
     private static final String TAG = "Barcode-reader";
 
     // intent request code to handle updating play services if needed.
@@ -75,8 +79,11 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
     public static final String BarcodeObject = "Barcode";
 
     private CameraSource mCameraSource;
+
+    private ViewGroup mTopLayout;
     private CameraSourcePreview mPreview;
     private GraphicOverlay<BarcodeGraphic> mGraphicOverlay;
+    private ImageView mCursor;
 
     // helper objects for detecting taps and pinches.
     private ScaleGestureDetector scaleGestureDetector;
@@ -92,8 +99,10 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
         super.onCreate(icicle);
         setContentView(R.layout.barcode_capture);
 
+        mTopLayout = (ViewGroup) findViewById(R.id.topLayout);
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay<BarcodeGraphic>) findViewById(R.id.graphicOverlay);
+        mCursor = (ImageView) findViewById(R.id.cursor);
 
         // read parameters from the intent used to launch the activity.
         boolean autoFocus = getIntent().getBooleanExtra(AutoFocus, true);
@@ -209,6 +218,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
         // create a separate tracker instance for each barcode.
         BarcodeDetector barcodeDetector = new BarcodeDetector.Builder(context).build();
         BarcodeTrackerFactory barcodeFactory = new BarcodeTrackerFactory(mGraphicOverlay);
+        barcodeFactory.setScanListener(this);
         barcodeDetector.setProcessor(
                 new MultiProcessor.Builder<>(barcodeFactory).build());
 
@@ -406,6 +416,44 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
         return false;
     }
 
+    @Override
+    public void onScannedBarcode(Barcode barcode, Frame.Metadata frameMetadata) {
+        if (barcode==null) return;
+
+        //Log.i(TAG, "onScannedBarcode: "+barcode.getBoundingBox());
+
+        // check whether the center of this barcode is in the bounding box of the cursor
+        Rect bcBounds = barcode.getBoundingBox();
+        final int tmpY = (int) (((double) bcBounds.centerY() / (double) frameMetadata.getHeight()) * mGraphicOverlay.getHeight());
+        final int tmpX = (int) (((double) bcBounds.centerX() / (double) frameMetadata.getWidth()) *  mGraphicOverlay.getWidth());
+
+        Log.i(TAG, "frame: "+ frameMetadata.getWidth() + " x "+frameMetadata.getHeight());
+        Log.i(TAG, "topLayout: "+ mTopLayout.getWidth() + " x "+mTopLayout.getHeight());
+
+        if (isViewContains(mCursor, tmpX, tmpY)) {
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(BarcodeCaptureActivity.this, "!!!", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        }
+
+    }
+
+    private boolean isViewContains(View view, int x, int y) {
+        int[] l = new int[2];
+        view.getLocationOnScreen(l);
+        int x1 = l[0];
+        int y2 = l[1];
+        int x2 = x1 + view.getWidth();
+        int y1 = y2 - view.getHeight();
+
+        return (x > x1 && x < x2 && y > y1 && y < y2);
+    }
+
     private class CaptureGestureListener extends GestureDetector.SimpleOnGestureListener {
         @Override
         public boolean onSingleTapConfirmed(MotionEvent e) {
@@ -466,4 +514,5 @@ public final class BarcodeCaptureActivity extends AppCompatActivity {
             mCameraSource.doZoom(detector.getScaleFactor());
         }
     }
+
 }

@@ -27,12 +27,14 @@ import com.google.android.gms.vision.barcode.Barcode;
  * goes away.
  */
 class BarcodeGraphicTracker extends Tracker<Barcode> {
+    private final BarcodeTrackerFactory.ScanListener mScanListener;
     private GraphicOverlay<BarcodeGraphic> mOverlay;
     private BarcodeGraphic mGraphic;
 
-    BarcodeGraphicTracker(GraphicOverlay<BarcodeGraphic> overlay, BarcodeGraphic graphic) {
+    BarcodeGraphicTracker(GraphicOverlay<BarcodeGraphic> overlay, BarcodeGraphic graphic, BarcodeTrackerFactory.ScanListener scanListener) {
         mOverlay = overlay;
         mGraphic = graphic;
+        mScanListener = scanListener;
     }
 
     /**
@@ -50,6 +52,9 @@ class BarcodeGraphicTracker extends Tracker<Barcode> {
     public void onUpdate(Detector.Detections<Barcode> detectionResults, Barcode item) {
         mOverlay.add(mGraphic);
         mGraphic.updateItem(item);
+        if (mScanListener!=null) {
+            mScanListener.onScannedBarcode(item, detectionResults.getFrameMetadata());
+        }
     }
 
     /**

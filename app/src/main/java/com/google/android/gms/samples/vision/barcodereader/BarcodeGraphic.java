@@ -19,6 +19,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.util.Log;
 
 import com.google.android.gms.samples.vision.barcodereader.ui.camera.GraphicOverlay;
 import com.google.android.gms.vision.barcode.Barcode;
@@ -97,16 +98,17 @@ public class BarcodeGraphic extends GraphicOverlay.Graphic {
         rect.right = translateX(rect.right);
         rect.bottom = translateY(rect.bottom);
 
-        // check whether this barcode is the one in the center of the screen
-        boolean isAtCenterOfTheScreen = rect.contains(canvas.getWidth() / 2, canvas.getHeight() / 2);
-        if (isAtCenterOfTheScreen) {
-            mRectPaint.setStrokeWidth(15f);
-        }
-        else {
-            mRectPaint.setStrokeWidth(4f);
-        }
+//        // check whether this barcode is the one in the center of the screen
+//        boolean isAtCenterOfTheScreen = rect.contains(canvas.getWidth() / 2, canvas.getHeight() / 2);
+//        if (isAtCenterOfTheScreen) {
+//            mRectPaint.setStrokeWidth(15f);
+//        }
+//        else {
+//            mRectPaint.setStrokeWidth(4f);
+//        }
 
 
+        Log.i("CANVAS", ""+canvas.getWidth()+" : "+canvas.getHeight());
 
         canvas.drawRect(rect, mRectPaint);
 

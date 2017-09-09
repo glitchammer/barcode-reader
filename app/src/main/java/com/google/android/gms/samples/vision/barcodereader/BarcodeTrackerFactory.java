@@ -16,6 +16,7 @@
 package com.google.android.gms.samples.vision.barcodereader;
 
 import com.google.android.gms.samples.vision.barcodereader.ui.camera.GraphicOverlay;
+import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.MultiProcessor;
 import com.google.android.gms.vision.Tracker;
 import com.google.android.gms.vision.barcode.Barcode;
@@ -25,7 +26,13 @@ import com.google.android.gms.vision.barcode.Barcode;
  * multi-processor uses this factory to create barcode trackers as needed -- one for each barcode.
  */
 class BarcodeTrackerFactory implements MultiProcessor.Factory<Barcode> {
+
+    public interface ScanListener {
+        public void onScannedBarcode(Barcode barcode, Frame.Metadata frameMetadata);
+    }
+
     private GraphicOverlay<BarcodeGraphic> mGraphicOverlay;
+    private ScanListener mScanListener = null;
 
     BarcodeTrackerFactory(GraphicOverlay<BarcodeGraphic> barcodeGraphicOverlay) {
         mGraphicOverlay = barcodeGraphicOverlay;
@@ -34,8 +41,11 @@ class BarcodeTrackerFactory implements MultiProcessor.Factory<Barcode> {
     @Override
     public Tracker<Barcode> create(Barcode barcode) {
         BarcodeGraphic graphic = new BarcodeGraphic(mGraphicOverlay);
-        return new BarcodeGraphicTracker(mGraphicOverlay, graphic);
+        return new BarcodeGraphicTracker(mGraphicOverlay, graphic, mScanListener);
     }
 
+    public void setScanListener(ScanListener scanListener) {
+        this.mScanListener = scanListener;
+    }
 }
 
