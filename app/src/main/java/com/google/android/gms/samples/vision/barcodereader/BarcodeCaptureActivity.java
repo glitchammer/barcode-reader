@@ -25,9 +25,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.ToneGenerator;
 import android.os.Build;
 import android.os.Bundle;
@@ -35,6 +37,7 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Menu;
@@ -44,6 +47,7 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -67,7 +71,10 @@ import java.io.IOException;
  * size, and ID of each barcode.
  */
 public final class BarcodeCaptureActivity extends AppCompatActivity implements BarcodeTrackerFactory.ScanListener {
+
     private static final String TAG = "Barcode-reader";
+
+    private static final float BEEP_VOLUME = 0.10f;
 
     // intent request code to handle updating play services if needed.
     private static final int RC_HANDLE_GMS = 9001;
@@ -86,6 +93,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     private CameraSourcePreview mPreview;
     private GraphicOverlay<BarcodeGraphic> mGraphicOverlay;
     private ImageView mCursor;
+    private DebugView mDebugView;
 
     // helper objects for detecting taps and pinches.
     private ScaleGestureDetector scaleGestureDetector;
@@ -93,6 +101,12 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
 
     private boolean mUseFlash = false;
     private boolean mLockAvoidFurtherScansImmediately = false;
+
+    /**
+     * When the center of a barcode's bounding box is contained by the cursor image's bounds -> BEEP and proceed.
+     * These bounds have to be set after layouting was done.
+     */
+    private Rect mCursorBounds = new Rect();
 
     /**
      * Initializes the UI and creates the detector pipeline.
@@ -106,6 +120,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay<BarcodeGraphic>) findViewById(R.id.graphicOverlay);
         mCursor = (ImageView) findViewById(R.id.cursor);
+        mDebugView = (DebugView) findViewById(R.id.vwDebug);
 
         // read parameters from the intent used to launch the activity.
         boolean autoFocus = getIntent().getBooleanExtra(AutoFocus, true);
@@ -126,13 +141,32 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
 //        Snackbar.make(mGraphicOverlay, "Tap to capture. Pinch/Stretch to zoom",
 //                Snackbar.LENGTH_LONG)
 //                .show();
+
+        // set mCursorBounds values after layouting was done
+        mTopLayout.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                synchronized (BarcodeCaptureActivity.this) {
+                    // calculate relative position of the 'cursor' wrt top layout (subtract toolbar height)
+                    DisplayMetrics dm = new DisplayMetrics();
+                    BarcodeCaptureActivity.this.getWindowManager().getDefaultDisplay().getMetrics(dm);
+                    int topOffset = dm.heightPixels - mTopLayout.getMeasuredHeight();
+
+                    mCursor.getGlobalVisibleRect(mCursorBounds);
+
+                    mCursorBounds.top -= topOffset;
+                    mCursorBounds.bottom -= topOffset;
+                }
+            }
+        });
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_barcode_capture, menu);
-        menu.findItem(R.id.use_flash).setIcon(getResources().getDrawable(mUseFlash? R.drawable.ic_flash_off_white_24dp : R.drawable.ic_flash_on_white_24dp));
+        menu.findItem(R.id.use_flash).setIcon(getResources().getDrawable(mUseFlash ? R.drawable.ic_flash_off_white_24dp : R.drawable.ic_flash_on_white_24dp));
         return true;
     }
 
@@ -148,8 +182,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
                     // switch on
                     mCameraSource.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
                     item.setIcon(getResources().getDrawable(R.drawable.ic_flash_off_white_24dp));
-                }
-                else {
+                } else {
                     // switch off
                     mCameraSource.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
                     item.setIcon(getResources().getDrawable(R.drawable.ic_flash_on_white_24dp));
@@ -207,7 +240,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
      * Creates and starts the camera.  Note that this uses a higher resolution in comparison
      * to other detection examples to enable the barcode detector to detect small barcodes
      * at long distances.
-     *
+     * <p>
      * Suppressing InlinedApi since there is a check that the minimum version is met before using
      * the constant.
      */
@@ -329,7 +362,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
         if (grantResults.length != 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "Camera permission granted - initialize the camera source");
             // we have permission, so create the camerasource
-            boolean autoFocus = getIntent().getBooleanExtra(AutoFocus,false);
+            boolean autoFocus = getIntent().getBooleanExtra(AutoFocus, false);
             boolean useFlash = getIntent().getBooleanExtra(UseFlash, false);
             createCameraSource(autoFocus, useFlash);
             return;
@@ -421,37 +454,78 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     }
 
     @Override
-    public void onScannedBarcode(final Barcode barcode, Frame.Metadata frameMetadata) {
-        if (barcode==null) return;
+    public void onScannedBarcode(final Barcode barcode) {
+        if (barcode == null) return;
 
         //Log.i(TAG, "onScannedBarcode: "+barcode.getBoundingBox());
 
         // check whether the center of this barcode is in the bounding box of the cursor
         Rect bcBounds = barcode.getBoundingBox();
-        final int tmpY = (int) (((double) bcBounds.centerY() / (double) frameMetadata.getHeight()) * mGraphicOverlay.getHeight());
-        final int tmpX = (int) (((double) bcBounds.centerX() / (double) frameMetadata.getWidth()) *  mGraphicOverlay.getWidth());
-
-        Log.i(TAG, "frame: "+ frameMetadata.getWidth() + " x "+frameMetadata.getHeight());
-        Log.i(TAG, "topLayout: "+ mTopLayout.getWidth() + " x "+mTopLayout.getHeight());
-
-        if (!mLockAvoidFurtherScansImmediately && isViewContains(mCursor, tmpX, tmpY)) {
-
+        //mDebugView.setDebugRect(mCursorBounds);
+        if (!mLockAvoidFurtherScansImmediately && mCursorBounds.contains(bcBounds.centerX(), bcBounds.centerY())) {
             mLockAvoidFurtherScansImmediately = true;
 
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-//                    Toast.makeText(BarcodeCaptureActivity.this, "!!!", Toast.LENGTH_SHORT).show();
 
                     mPreview.stop();
 
+                    // beep
                     ToneGenerator toneGen = new ToneGenerator(AudioManager.STREAM_RING, 100);
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP,150);
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150);
                     toneGen.release();
 
+                    // launch ScanResultActivity
                     Intent iScanResult = new Intent(BarcodeCaptureActivity.this, ScanResultActivity.class);
                     iScanResult.putExtra(ScanResultActivity.PARAM_CODE, barcode.rawValue);
                     startActivity(iScanResult);
+
+
+                    // if you want 'nicer sounds' use media player
+                    // however, for some reason it drags and freezes the ui
+                    // guess this should not run on UI thread and needs some more care....
+                    // (did not investigate much though)
+
+//                    MediaPlayer mediaPlayer = new MediaPlayer();
+//                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+//                    mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+//                        @Override
+//                        public void onCompletion(MediaPlayer mp) {
+//                            mp.stop();
+//                            mp.release();
+//
+//                            // start scan result activity after sound finished
+//                            Intent iScanResult = new Intent(BarcodeCaptureActivity.this, ScanResultActivity.class);
+//                            iScanResult.putExtra(ScanResultActivity.PARAM_CODE, barcode.rawValue);
+//                            startActivity(iScanResult);
+//
+//                        }
+//                    });
+//                    mediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+//                        @Override
+//                        public boolean onError(MediaPlayer mp, int what, int extra) {
+//                            Log.w(TAG, "Failed to beep " + what + ", " + extra);
+//                            // possibly media player error, so release and recreate
+//                            mp.stop();
+//                            mp.release();
+//                            return true;
+//                        }
+//                    });
+//                    try {
+//                        AssetFileDescriptor file = BarcodeCaptureActivity.this.getResources().openRawResourceFd(R.raw.store_scanner_beep);
+//                        try {
+//                            mediaPlayer.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
+//                        } finally {
+//                            file.close();
+//                        }
+//                        mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);
+//                        mediaPlayer.prepare();
+//                        mediaPlayer.start();
+//                    } catch (IOException ioe) {
+//                        Log.w(TAG, ioe);
+//                        mediaPlayer.release();
+//                    }
 
                 }
             });
@@ -460,16 +534,6 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
 
     }
 
-    private boolean isViewContains(View view, int x, int y) {
-        int[] l = new int[2];
-        view.getLocationOnScreen(l);
-        int x1 = l[0];
-        int y2 = l[1];
-        int x2 = x1 + view.getWidth();
-        int y1 = y2 - view.getHeight();
-
-        return (x > x1 && x < x2 && y > y1 && y < y2);
-    }
 
     private class CaptureGestureListener extends GestureDetector.SimpleOnGestureListener {
         @Override
@@ -531,5 +595,6 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
             mCameraSource.doZoom(detector.getScaleFactor());
         }
     }
+
 
 }

@@ -12,9 +12,10 @@
         android:fullBackupContent="false"
         android:hardwareAccelerated="true"
         android:icon="@drawable/icon"
-        android:label="MultiTrackerApp"
+        android:label="Barcode / QR-Code Reader"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat">
+
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
@@ -25,6 +26,7 @@
         <activity
             android:name=".MainActivity"
             android:label="@string/title_activity_main"></activity>
+
         <activity
             android:name=".BarcodeCaptureActivity"
             android:label="Read Barcode"
@@ -36,8 +38,14 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
-        <activity android:name=".ScanResultActivity"></activity>
+
+        <activity
+            android:name=".ScanResultActivity"
+            android:label="Scan Result"
+            />
+
     </application>
 
 </manifest>

@@ -1,9 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.google.android.gms.samples.vision.barcodereader.ScanResultActivity">
+    tools:context="com.google.android.gms.samples.vision.barcodereader.ScanResultActivity"
+    android:orientation="vertical"
+    >
 
-</android.support.constraint.ConstraintLayout>
+    <TextView
+        android:id="@+id/tvHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Loading data for code / id:"
+        android:gravity="center"
+        android:layout_margin="40dp"
+        />
+
+    <TextView
+        android:id="@+id/tvCode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearanceBig"
+        android:textColor="@android:color/black"
+        android:background="@android:color/white"
+        android:layout_below="@+id/tvHeader"
+        android:layout_margin="40dp"
+        />
+
+    <com.wang.avi.AVLoadingIndicatorView
+        android:id="@+id/loadingIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:indicatorName="BallSpinFadeLoaderIndicator"
+        style="@style/AVLoadingIndicatorView.Large"
+        android:layout_centerInParent="true"
+        android:layout_margin="40dp"
+        />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="... not implemented yet\n(please press back button)"
+        android:textColor="@android:color/holo_red_dark"
+        android:textAppearance="@style/TextAppearanceBig"
+        android:layout_below="@+id/loadingIndicator"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="40dp"
+        />
+
+
+</RelativeLayout>

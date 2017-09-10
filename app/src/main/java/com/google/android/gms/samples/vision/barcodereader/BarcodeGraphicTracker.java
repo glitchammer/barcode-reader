@@ -53,7 +53,7 @@ class BarcodeGraphicTracker extends Tracker<Barcode> {
         mOverlay.add(mGraphic);
         mGraphic.updateItem(item);
         if (mScanListener!=null) {
-            mScanListener.onScannedBarcode(item, detectionResults.getFrameMetadata());
+            mScanListener.onScannedBarcode(item);
         }
     }
 

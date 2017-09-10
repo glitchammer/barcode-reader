@@ -28,7 +28,7 @@ import com.google.android.gms.vision.barcode.Barcode;
 class BarcodeTrackerFactory implements MultiProcessor.Factory<Barcode> {
 
     public interface ScanListener {
-        public void onScannedBarcode(Barcode barcode, Frame.Metadata frameMetadata);
+        public void onScannedBarcode(Barcode barcode);
     }
 
     private GraphicOverlay<BarcodeGraphic> mGraphicOverlay;

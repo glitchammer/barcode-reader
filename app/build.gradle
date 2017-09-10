@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.google.android.gms.samples.vision.barcodereader"
-        minSdkVersion 9
+        minSdkVersion 14
         targetSdkVersion 24
         versionCode 1
         versionName "1.0"
@@ -26,4 +26,6 @@ dependencies {
     compile 'com.google.android.gms:play-services-vision:9.4.0+'
     compile 'com.android.support:design:24.2.0'
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
+
+    compile 'com.wang.avi:library:2.1.3'
 }

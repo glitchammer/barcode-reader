@@ -98,21 +98,9 @@ public class BarcodeGraphic extends GraphicOverlay.Graphic {
         rect.right = translateX(rect.right);
         rect.bottom = translateY(rect.bottom);
 
-//        // check whether this barcode is the one in the center of the screen
-//        boolean isAtCenterOfTheScreen = rect.contains(canvas.getWidth() / 2, canvas.getHeight() / 2);
-//        if (isAtCenterOfTheScreen) {
-//            mRectPaint.setStrokeWidth(15f);
-//        }
-//        else {
-//            mRectPaint.setStrokeWidth(4f);
-//        }
-
-
-        Log.i("CANVAS", ""+canvas.getWidth()+" : "+canvas.getHeight());
-
         canvas.drawRect(rect, mRectPaint);
 
         // Draws a label at the bottom of the barcode indicate the barcode value that was detected.
-        canvas.drawText(barcode.rawValue, rect.left, rect.bottom, mTextPaint);
+        //canvas.drawText(barcode.rawValue, rect.left, rect.bottom, mTextPaint);
     }
 }
